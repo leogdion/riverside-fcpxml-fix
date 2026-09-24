@@ -1,0 +1,14 @@
+{
+  "name": "riverside-fcpxml-fix",
+  "owner": {
+    "name": "Leo Dion",
+    "email": "leogdion@brightdigit.com"
+  },
+  "plugins": [
+    {
+      "name": "riverside-fcpxml-fix",
+      "source": "./",
+      "description": "Fix Riverside.fm timeline exports (FCPXML) for Final Cut Pro."
+    }
+  ]
+}

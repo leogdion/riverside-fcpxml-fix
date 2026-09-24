@@ -1,0 +1,11 @@
+{
+  "name": "riverside-fcpxml-fix",
+  "version": "1.0.0",
+  "description": "Fix Riverside.fm timeline exports (FCPXML) for Final Cut Pro: green-screen background compounds, blank-frame fix, 4K formats, missing media report.",
+  "author": {
+    "name": "Leo Dion",
+    "email": "leogdion@brightdigit.com"
+  },
+  "license": "MIT",
+  "keywords": ["riverside", "final-cut-pro", "fcpxml", "green-screen", "video"]
+}
