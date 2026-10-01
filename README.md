@@ -13,6 +13,18 @@ Fixes the Final Cut Pro timeline that [Riverside.fm](https://riverside.fm) expor
 | **Green-screen background** | You want the green keyed out and the background *inside your clip*, cropped and positioned with you | The script builds one compound clip per green-screen recording (background image + recording) and points every cut at it. You key it **once** per compound, and every cut follows. |
 | **Missing media** | "Missing media" warning; speakers silent | The XML references `*-enhanced.wav` tracks that Riverside doesn't include. The script lists them so you can download and relink them. |
 
+### Not fixed by the script (yet)
+
+| Problem | Notes |
+|---|---|
+| **Lip sync off for one speaker** | Shift the video inside that speaker's compound (`start="N/24s"`), and rename the compound/project and drop their `uid`s before re-importing. See [`SKILL.md`](skills/riverside-fcpxml-fix/SKILL.md). |
+| **Chapters missing from the export** | Riverside puts its chapter markers on the top-level gap; bladed gaps duplicate them, and they didn't reach the shared file. Compute chapter times from the XML. |
+| **Choppy video** | A ~15 fps webcam padded to 24 fps by Riverside. Source problem. |
+
+[`references/lessons-learned.md`](skills/riverside-fcpxml-fix/references/lessons-learned.md)
+has the full EAS-212 case study: lip sync, chapters, re-timing transcripts, speaker detection,
+and delivery settings for YouTube and Transistor.
+
 ## Requirements
 
 - macOS with Final Cut Pro (its DTD is used to validate the output)
