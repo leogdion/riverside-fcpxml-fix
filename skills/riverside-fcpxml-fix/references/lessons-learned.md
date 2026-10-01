@@ -113,8 +113,16 @@ have the same duration/timing as the timeline `<id>-video.mp4`.
   and Automated Everything with Jared Sorge").
 - Guest still: sample the raw guest video every 15 s at 480 px, contact-sheet it, refine the
   best moments at 0.5 s, then export the chosen frame at full 4K as PNG.
-- Thumbnails: brand serif is **Cardo**; Leo wants click-worthy concepts (2–4 words of hook
-  text, big face, strong contrast) rather than strict matching of past thumbnails.
+- Thumbnails (1280×720):
+  - Brand style since ep. 207: **Cardo** serif in white with a soft drop shadow; huge stacked
+    title on one side, guest face cutout on the other; small "ep. NNN" top-right; small
+    "with" above the guest name.
+  - As of ep. 212 Leo prefers **click-worthy** concepts over strictly matching that style:
+    2–4 words of hook text (not the full title), big expressive guest face, strong contrast.
+    Cardo is optional, for small brand text.
+  - Past thumbnails for reference: `https://i.ytimg.com/vi/<videoId>/maxresdefault.jpg`
+    (video IDs are in the Transistor feed's `podcast:contentLink`). Claude Design worked well
+    for generating variations from a prompt plus the guest still.
 
 ## Related skills
 
