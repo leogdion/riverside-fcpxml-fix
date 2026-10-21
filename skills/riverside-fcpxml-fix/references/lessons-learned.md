@@ -223,7 +223,7 @@ These notes replace the episode `CLAUDE.md` that lived in `/Volumes/Media/Export
   stream start from the shift (11.6667 → 11.3581 s). Measured by motion correlation of the
   export's left half vs the Opal file in the 4 longest Leo clips (r ≈ 0.25, consistent).
 
-## Leo Dion with Graham Lee (recorded 2026-10-19, fixed 2026-10-21)
+## EAS-216 (Leo Dion with Graham Lee, recorded 2026-10-19, fixed 2026-10-21)
 
 - IDs: Leo = `6ad61218a6593ea6114d3e0c` (3840×2160 VFR, avg ~11.8 fps, labeled `2160p12`, 563 cuts),
   Graham = `6ad6121a6141ee07e1eaece3` (1080p24, 866 cuts). No green screen auto-detected (Leo's
@@ -241,3 +241,17 @@ These notes replace the episode `CLAUDE.md` that lived in `/Volumes/Media/Export
   speech. Riverside's render (`~/Downloads/riverside_magic_episode 01_empower-apps.mp4`, mono AAC,
   same 4341.67 s timeline) holds −7 dB vs source through all 63 testable ramps and drops to −88 dB
   right after the −96 key. Script step 8 now inserts the hold 2 frames before the key (369 incl. raw tracks).
+- Re-exported from Riverside after fixing smart-layout cuts: same recordings, 193 Leo cuts.
+- First export: Leo silent in every on-screen cut (export −100 dB vs source; off-screen audio
+  clips fine). Cause: the swap re-pointed the wavs' parent at the VFR Opal file. Rebuilt as an
+  anchored overlay (see SKILL.md). Next import: Opal camera mic as an echo 0.9 s early, and
+  Riverside's uncropped video over Graham in grids (FCP ignores `srcEnable` there); fixed with
+  −96 dB + inactive channels on the Opal clip and the crop/transform kept on Riverside's clip.
+- Opal picture ran 0.34 s ahead even with the stream-start correction (video edit list +
+  pre-roll); final OFFSET −243.84. Verified in `/Volumes/Media/Exports/EAS-216.mov`: picture
+  within 0.01 s in 4 solo shots, voice exact (r 0.92–0.96), no echo, −13.9 LUFS.
+- True peak 0.0 dBFS at 4:33.8 only: a cut where Graham's source jumps 0.17 s breaks the
+  constant speaker offset the shared limiter assumes. Nothing else above −1 dBFS.
+- FCP warned "Encountered an unexpected value (format=…)" on the project sequence: the script
+  named the 4K format `FFVideoFormat2160p24`; FCP's name is `FFVideoFormat3840x2160p24`. Fixed.
+- Leo extended Graham's opening name tag by hand (0:36.2–1:02.4).

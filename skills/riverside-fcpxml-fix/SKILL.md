@@ -63,9 +63,15 @@ plays on the timeline*: each speaker's offset to the others comes from the overl
 −1.5 dBFS ceiling, with any mute/ramp combination. Don't add a Limiter via XML: FCP's audio
 effect IDs (`AudioUnit: 0x…`) aren't confirmed as FCPXML uids, and there is no mix bus.
 
-**Local recording (`--local-video "ID=PATH@OFFSET"`).** Swaps a participant's Riverside
-video for their local file and shifts every cut (clip `start`, own keyframes, anchored wavs)
-so the edit is unchanged. OFFSET = local time − Riverside time. Measure by **matching frames**,
+**Local recording (`--local-video "ID=PATH@OFFSET"`).** Shows a participant's local file
+instead of their Riverside video. Riverside's clip stays as the parent of the nested wavs
+(`srcEnable="audio"`, crop/transform kept); the local file is anchored above it on lane 1 with
+a shifted copy of the crop/transform and its audio off (`srcEnable="video"`, −96 dB, every
+channel inactive), so the edit and the audio are unchanged. All three guards are needed: FCP
+ignores `srcEnable` inside these sync-clips (EAS-216: Riverside's uncropped video covered the
+guest in grids; the Opal camera mic played 0.9 s early as an echo). Don't re-point the parent
+at the local file instead: FCP reads anchored offsets in the parent's timebase, the VFR local
+file put the wavs off grid, and the speaker's voice was silently dropped in every on-screen cut. OFFSET = local time − Riverside time. Measure by **matching frames**,
 not audio: decode both at `fps=100,scale=64:36,format=gray` over 60 s windows at 3–4 points
 and take the shift with the lowest mean abs diff (EAS-215: 11.59–11.63 s, no drift). The
 local file's own audio said 11.24 s; its A/V pairing is ~0.39 s worse than Riverside's, so
@@ -74,8 +80,11 @@ audio alignment would put the picture 9 frames late. Add any lip-sync correction
 script converts to FCP's media time, which **starts at the latest-starting stream**: the Opal
 .mov's audio starts at 0.3086 s and FCP skipped that much video, so the first export's
 picture ran 0.32–0.34 s (~8 frames) ahead of the sound until the script subtracted it.
-After a swap, always check the export: motion-correlate the speaker's region against the
-local file in 3–4 long clips (expect +0.00 s vs the XML). Check the local file's frame rate first.
+That rule isn't universal: EAS-216's Opal file has a video edit list and pre-roll frames, and
+FCP showed the picture a further 0.34 s ahead; fixed by passing OFFSET 0.34 s lower (−243.84
+instead of −243.50). After a swap, always check the export: motion-correlate the speaker's
+solo shots against the local file in 3–4 long clips (expect +0.00 s vs the intended OFFSET),
+and correct OFFSET by what you measure. Check the local file's frame rate first.
 On EAS-215 the Opal C1 was itself ~15 fps (VFR, 50–75 ms frame gaps), so the swap only
 improved quality (10-bit 4:2:2 HEVC vs 8-bit H.264), not choppiness.
 

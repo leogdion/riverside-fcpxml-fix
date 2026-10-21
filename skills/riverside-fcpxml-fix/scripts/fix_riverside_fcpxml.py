@@ -33,7 +33,7 @@ Usage:
       [--lower-third "Name|subtitle|start|end|left|right" ...]
       [--local-video "ID=PATH@OFFSET"] [--loudness LUFS]
 """
-import argparse, glob, os, shutil, subprocess, sys, tempfile, wave
+import argparse, copy, glob, os, shutil, subprocess, sys, tempfile, wave
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from collections import Counter
@@ -96,11 +96,14 @@ def is_green_screen(path, duration):
     return green / len(border) > 0.6
 
 
-def format_name(h, frame_duration):
+def format_name(w, h, frame_duration):
     fps = 1 / t(frame_duration)
     tag = {Fraction(24000, 1001): '2398', Fraction(30000, 1001): '2997',
            Fraction(60000, 1001): '5994'}.get(fps, str(round(float(fps))))
-    return f'FFVideoFormat{h}p{tag}'
+    # FCP's names: 1080p/720p by height, 4K by full size. "FFVideoFormat2160p24" (Riverside's
+    # style) on the project sequence imports with "Encountered an unexpected value"
+    size = f'{h}p' if (w, h) in ((1920, 1080), (1280, 720)) else f'{w}x{h}p'
+    return f'FFVideoFormat{size}{tag}'
 
 
 def find_dtd(version):
@@ -246,34 +249,33 @@ def ffprobe_value(path, stream, entry):
                            '-of', 'csv=p=0', path], capture_output=True, text=True).stdout.strip()
 
 
-def use_local_video(root, asset, path, shift, format_for):
-    """Point a Riverside video asset at the participant's local recording, where
-    local time = Riverside time + shift. Every clip of the asset gets shift added
-    to its start, its own keyframes and its anchored children (the nested wavs),
-    so each cut shows the same moment and the audio stays where it was."""
+def use_local_video(root, res, asset, path, shift, format_for, new_id):
+    """Show the participant's local recording instead of a Riverside video, where
+    local time = Riverside time + shift. Riverside's clip stays as the parent of the
+    nested wavs (video off); the local file is anchored above it with the clip's
+    crop/transform, so each cut shows the same moment and the audio is untouched.
+    Re-pointing the parent at the local file silenced the wavs: FCP reads anchored
+    offsets in the parent's timebase, and the local file's VFR rate put them off grid."""
     info = probe(path)
     if not info:
         sys.exit(f'--local-video: cannot read {path}')
     dur = Fraction(ffprobe_value(path, 'v:0', 'format=duration'))
-    used = max((t(c.get('start')) + t(c.get('duration')) for c in root.iter('asset-clip')
-                if c.get('ref') == asset.get('id')), default=0)
+    clips = [c for c in root.iter('asset-clip') if c.get('ref') == asset.get('id')]
+    used = max((t(c.get('start')) + t(c.get('duration')) for c in clips), default=0)
     if used + shift > dur:
         sys.exit(f'--local-video: the cuts need {float(used + shift):.2f}s of {path} but it is {float(dur):.2f}s')
-    old_name = asset.get('name')
-    asset.set('name', os.path.basename(path))
-    asset.set('duration', ts(dur))
-    asset.set('format', format_for(*info))
+    local = ET.Element('asset', id=new_id(), name=os.path.basename(path), start='0s', duration=ts(dur),
+                       hasVideo='1', format=format_for(*info), videoSources='1', hasAudio='0')
+    # Declare the file's real audio so it can be switched off: declared as silent, FCP
+    # still played it (Opal's camera mic, ~0.9 s off the Riverside voice: an echo)
     channels = ffprobe_value(path, 'a:0', 'stream=channels')
-    rate = ffprobe_value(path, 'a:0', 'stream=sample_rate')
     if channels:
-        asset.set('hasAudio', '1'); asset.set('audioSources', '1')
-        asset.set('audioChannels', channels); asset.set('audioRate', rate)
-    else:
-        asset.set('hasAudio', '0')
-        for k in ('audioSources', 'audioChannels', 'audioRate'):
-            asset.attrib.pop(k, None)
-    asset.attrib.pop('uid', None)
-    asset.find('media-rep').set('src', Path(path).resolve().as_uri())
+        local.set('hasAudio', '1')
+        local.set('audioSources', '1')
+        local.set('audioChannels', channels)
+        local.set('audioRate', ffprobe_value(path, 'a:0', 'stream=sample_rate'))
+    ET.SubElement(local, 'media-rep', kind='original-media', src=Path(path).resolve().as_uri())
+    res.insert(list(res).index(asset) + 1, local)
     # FCP starts the file's time at its latest-starting stream, while ffmpeg (and the
     # frame match that measured shift) uses the video pts. EAS-215's Opal .mov: audio
     # starts at 0.3086s and the export showed the picture 0.32-0.34s early until this.
@@ -284,23 +286,30 @@ def use_local_video(root, asset, path, shift, format_for):
     if lead:
         print(f'local video: streams start {float(lead):.4f}s after the video; FCP time = video pts - that')
         shift -= lead
-    n = 0
-    for clip in root.iter('asset-clip'):
-        if clip.get('ref') != asset.get('id'):
-            continue
-        clip.set('start', ts(t(clip.get('start')) + shift))
-        if clip.get('name') == old_name:
-            clip.set('name', asset.get('name'))
-        for child in clip:
-            if child.tag.startswith('adjust-'):
+    for clip in clips:
+        start = t(clip.get('start'))
+        top = ET.Element('asset-clip', ref=local.get('id'), lane='1', offset=clip.get('start'),
+                         name=local.get('name'), start=ts(start + shift), duration=clip.get('duration'),
+                         srcEnable='video')
+        # Copy the crop/transform rather than move it: FCP ignores srcEnable on clips in a
+        # sync-clip, so Riverside's video still shows; same framing keeps it hidden underneath
+        for child in list(clip):
+            if child.tag.startswith('adjust-') and child.tag not in ('adjust-volume', 'adjust-panner'):
+                child = copy.deepcopy(child)
                 for kf in child.iter('keyframe'):
                     kf.set('time', ts(t(kf.get('time')) + shift))
-            elif child.get('offset') is not None:      # anchored items and markers live in the clip's local time
-                child.set('offset', ts(t(child.get('offset')) + shift))
-            elif 'marker' in child.tag:
-                child.set('start', ts(t(child.get('start')) + shift))
-        n += 1
-    print(f'local video: {path} replaces {asset.get("id")} in {n} clips (shift {float(shift):+.4f}s)')
+                top.append(child)
+        if channels:   # silenced three ways: srcEnable, -96 dB and every channel inactive
+            ET.SubElement(top, 'adjust-volume', amount='-96dB')
+            ET.SubElement(top, 'audio-channel-source', role='dialogue', active='0',
+                          srcCh=', '.join(str(i) for i in range(1, int(channels) + 1)))
+        # anchored items follow the clip's intrinsic params
+        first = next((i for i, c in enumerate(clip) if c.get('lane') is not None
+                      or 'marker' in c.tag or c.tag == 'audio-channel-source'), len(clip))
+        clip.insert(first, top)
+        clip.set('srcEnable', 'audio')
+    print(f'local video: {path} shown over {asset.get("name")} in {len(clips)} clips (shift {float(shift):+.4f}s)')
+    return local
 
 
 def master_audio(root, project_seq, assets, xml_dir, src_of, target, ceiling_db=-1.5, block=240, reach=12):
@@ -515,13 +524,14 @@ def main():
             if (f.get('width'), f.get('height'), f.get('frameDuration')) == (str(w), str(h), fd):
                 return f.get('id')
         fid = new_id()
-        f = ET.Element('format', id=fid, name=format_name(h, fd), frameDuration=fd,
+        f = ET.Element('format', id=fid, name=format_name(w, h, fd), frameDuration=fd,
                        width=str(w), height=str(h))
         res.insert(0, f)
         formats[fid] = f
         return fid
 
     # 6. Local recordings in place of Riverside's video
+    replaced = {}
     for spec in args.local_video:
         key, rest = spec.split('=', 1)
         path, shift = rest.rsplit('@', 1)
@@ -529,10 +539,12 @@ def main():
                  and a.get('duration') not in (None, '0s')]
         if len(match) != 1:
             sys.exit(f'--local-video: "{key}" matches {len(match)} video assets')
-        use_local_video(root, match[0], path, Fraction(shift), format_for)
+        replaced[match[0].get('id')] = use_local_video(root, res, match[0], path, Fraction(shift),
+                                                       format_for, new_id)
 
+    assets.update({a.get('id'): a for a in replaced.values()})
     videos = [a for a in assets.values()
-              if a.get('hasVideo') == '1' and a.get('duration') not in (None, '0s')
+              if a.get('id') not in replaced and a.get('hasVideo') == '1' and a.get('duration') not in (None, '0s')
               and os.path.exists(src_of(a))]
     real = {a.get('id'): probe(src_of(a)) for a in videos}
 
