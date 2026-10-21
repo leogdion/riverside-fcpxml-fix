@@ -142,3 +142,102 @@ These notes replace the episode `CLAUDE.md` that lived in `/Volumes/Media/Export
   `Transcode` holds it; no `moov` atom until done).
 - Homebrew ffmpeg here has no `drawtext`; label contact sheets with Pillow instead.
 - Never modify or delete masters/exports without asking.
+
+## EAS-213 (Leo Dion with Stewart Lynch, October 2026, 44:26)
+
+- Script ran cleanly: 1 green-screen recording (Leo, `6ab154cc…`), 256 cuts repointed,
+  0 blank frames, no missing media. Riverside named the files by id only, so the compound
+  came out as "6Ab154Cc… + Background"; renamed to "Leo + Background (6ab154cc)" by hand.
+  Candidate script feature: `--name ID=Leo` or derive the name from `riverside_<name>_raw-*`.
+- Leo built the background inside the compound from FCP generators (Vivid + Paper overlay)
+  instead of the png, and added the Green Screen Keyer in FCP. Both carried through
+  the FCPXML export and re-import.
+- **Lip sync: Leo's video 12 frames (500 ms) late** (EAS-212 was 9). Stewart in sync (±1–2 f).
+  Measured by onset filmstrips (mouth opened +11 and +13 frames after the sound);
+  whole-recording motion/envelope correlation only leaned to +10…+11 with r ≈ 0.08.
+  Fix: `start="12/24s"`, duration 72921 → 72909 frames on the video inside the compound;
+  `EAS-213.fcpxmld` → `/Volumes/Media/EAS-213-sync.fcpxmld`, project "EAS-213 (sync fixed)".
+  Before shortening, check no timeline `ref-clip` uses the compound's last N frames (the
+  event-level browser `ref-clip` always spans the whole compound; ignore it).
+- Verified in the re-export: video maps +500 ms ahead of audio in source time; mouth now
+  opens ~2 frames before the sound (natural).
+- Export check: 3840×2160 ProRes 422 24 fps, −18.9 LUFS integrated, true peak −1.4 dBFS
+  (~5 dB under YouTube's −14), no chapter track again, no burned-in captions.
+- `xmllint --dtdvalid` fails on the DTD path when it contains spaces
+  ("Final Cut Pro Creator Studio.app"); copy the DTD to a path without spaces first.
+
+## EAS-214 (Leo Dion with Tim Condon, October 2026, 46:51)
+
+- IDs: Leo = `6ab54ab64053a41d658f991b` (3840×2160 **VFR**, avg 26.22 fps, 259 cuts),
+  Tim = `6ab54ab6d74530d6896a7dab` (1920×1080 24 fps, 661 cuts). No green screen; background
+  = black Color solids on lane 1; Riverside "Q" logo PNG on lane 4 (scale 0.133, top-right).
+  I first mixed the two up by inferring from clip counts — always look at a frame.
+- Imported as-is, the FCP render differed from Riverside's mp4 on 169 single frames, all the
+  first frame of a cut where Leo's VFR clip enters: 12 fully black, the rest a wrong layout.
+  The script's alignment (259 sync-clips) fixes the windows; recheck with a new render.
+- Name tags: Leo 0:01.375–0:12.375 and 46:45.04–46:49.71 (bottom-left), Tim 0:07.708–0:12.0,
+  0:27.167–0:29.125 and 46:45.04–46:49.33 (bottom-right). Found by counting near-white pixels
+  in the bottom 20 % of Riverside's mp4, left and right halves separately, per frame.
+- Leo's raw `-audio.wav` was at 0 dB alongside the enhanced track in 116 of his clips, but the
+  render was **not** louder or doubled (same level vs the enhanced source as other clips,
+  in FCP and in Riverside). Check a render before reporting volume flags as a problem.
+- Audio sync FCP vs Riverside render: within ±1 frame; loudness within +0.4 dB median.
+- Riverside left an AI note marker at 24:21 ("removed section … behind-the-scenes"), and the AI
+  chapter "Conclusion and Future Directions" sat at 22:31, which is the wrong spot.
+- Guest stills: Tim's camera is 1080p only; picks at 17:47 (1067.0/1067.5 s source time) look
+  straight to camera. Saved in `/Volumes/Media/Exports/EAS-214-Tim-stills/`.
+- Verified in a 4K ProRes render of the fixed XML (`/Volumes/Media/Exports/EAS-214.mov`):
+  0 black frames (was 12), mismatching frames 169 → 65. **The remaining 65 are Riverside's fault:**
+  its render switches layout one frame *after* the cut in its own XML; FCP switches on the cut.
+  Audio sync and loudness are unchanged.
+- First lower-third pass was ~1.6× too big (name 5.1 % / subtitle 3.3 % of height). Matched
+  sizes: name 3.2 %, subtitle 2.1 % (69/45 pt in 4K), position y −37.8, x ±82.8 (% of height).
+
+## EAS-215 (Leo Dion with Georg Tuparev, October 2026, 42:53)
+
+- IDs: Leo = `6acf7e247e1f4913861bba38` (3840×2160 VFR, avg 16.55 fps, labeled `2160p17`),
+  Georg = `6acf7e212df807b01c7a39dc` (1080p24). No green screen (Leo's teal/blue room lighting:
+  pass `--no-green`). Enhanced wavs were included this time; nothing to relink.
+- Alignment: 343 sync-clips, 127 showing a blank frame. First export (`/Volumes/Media/Exports/EAS-215.mov`,
+  4K ProRes 422): 0 blank frames across all 549 cut points. Two layout switches one frame
+  early (frames 8587, 59766) are 1-frame clips in Riverside's own XML, not a bug.
+- After alignment the speakers' audio sits at a constant offset: Leo's source time = Georg's
+  + 1/24 s at every overlapping moment (Riverside's original varied 29–67 ms).
+- Lip sync: Leo's mouth opened 0–3 frames after his sound (avg ~1.5) — far better than
+  EAS-212/213. Georg's onset picks weren't real silences; inconclusive.
+- Loudness: −19.4 LUFS / −1.1 dBTP. Cause found: each mono enhanced track plays at exactly
+  −6.0 dB per channel (least-squares gain vs source at 12 points). Peaks above −6.9 were
+  cross-talk sums. Fixed with `--loudness -14` (gain −0.6 dB on the stereo copies, limiter
+  active 1.7 % of the time, max 5.8 dB; aligned sum peak exactly −1.5 dBFS).
+- Name tags: Georg's rule-4 tag ran to the end over Leo's solo shots → rule changed: tags end
+  when their person leaves the shot (his now ends 42:36.1).
+- Local Opal C1 recording `/Volumes/Media/OPAL/Opal-video-20261014095348.mov`: HEVC 10-bit
+  4:2:2 ~12 Mbps, VFR ~16 fps (same choppiness as Riverside's copy, so it's the camera; likely
+  low-light exposure). Same framing as Riverside's. Audio matched Riverside's raw wav at r=0.95
+  (same mic) with offset 11.241 s; frames matched at 11.59–11.63 s; used 280/24 s.
+- Export metadata carried the keyword "EAS-213" from a stale FCP share setting.
+- Second export (with Opal video + `--loudness -14`): −14.1 LUFS, sample peak −1.5 dBFS,
+  true peak −1.1 dBTP (as predicted); 0 blank frames; tags correct (Georg's ends 42:36).
+  But Leo's picture ran 0.32–0.34 s ahead: FCP's media time for the Opal .mov starts at its
+  audio stream (start_time 0.3086 s), not the video pts. Script now subtracts the latest
+  stream start from the shift (11.6667 → 11.3581 s). Measured by motion correlation of the
+  export's left half vs the Opal file in the 4 longest Leo clips (r ≈ 0.25, consistent).
+
+## Leo Dion with Graham Lee (recorded 2026-10-19, fixed 2026-10-21)
+
+- IDs: Leo = `6ad61218a6593ea6114d3e0c` (3840×2160 VFR, avg ~11.8 fps, labeled `2160p12`, 563 cuts),
+  Graham = `6ad6121a6141ee07e1eaece3` (1080p24, 866 cuts). No green screen auto-detected (Leo's
+  room has a green curtain but the door shows). Enhanced wavs included. 296 of 563 sync-clips
+  were showing a blank frame.
+- Opal `/Volumes/Media/OPAL/Opal-video-20261019101414.mov` (HEVC 4K, ~11.8 fps VFR, audio
+  start 0.3295 s): frames matched at −243.57…−243.68 s (4 points, no drift). Its own audio
+  matched at −244.40 s (pts), so **the Opal file's audio leads its picture by ~0.8 s**. Never align it by audio.
+- Riverside's Leo video lagged his audio by ~1–2 camera frames (2–4 frames at 24 fps) in onset
+  filmstrips (fps=12 tiles, since the camera is ~12 fps). Used `@-5844/24` (frame match + 3 frames).
+- Timeline: Graham's source time = Leo's − 4.833 s (recordings started at different times).
+- Loudness `-14`: gain −0.7 dB, limiter 1.0 % of the time, max 5.7 dB.
+- **Mid-sentence fades (listener complaint about EAS-214 ~38:00):** 185 enhanced-track volume
+  ramps of 1–9 s (`0 dB` at clip start → `−96 dB` seconds later, hold keyframe missing), 99 over
+  speech. Riverside's render (`~/Downloads/riverside_magic_episode 01_empower-apps.mp4`, mono AAC,
+  same 4341.67 s timeline) holds −7 dB vs source through all 63 testable ramps and drops to −88 dB
+  right after the −96 key. Script step 8 now inserts the hold 2 frames before the key (369 incl. raw tracks).
